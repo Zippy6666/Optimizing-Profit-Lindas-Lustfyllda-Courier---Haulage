@@ -4,7 +4,7 @@ import os
 
 
 class _DeliveryVan:
-    def __init__(self, name):
+    def __init__(self, name) -> None:
         """Create a new delivery van."""
         
         assert __name__ == "__main__", "Don't import this class."
@@ -20,7 +20,7 @@ class _DeliveryVan:
         }
         self._packages = pd.DataFrame(columns=["Paket_id", "Vikt", "Förtjänst", "Deadline"]).astype(dtypes) # Empty DataFrame
 
-    def load_package(self, package: pd.Series):
+    def load_package(self, package: pd.Series) -> None:
         """
         Load a package into this van. The total weight cannot exceed 800 Kg.
 
@@ -44,22 +44,22 @@ class _DeliveryVan:
     def get_profit(self) -> int:
         return self._packages["Förtjänst"].sum()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self._name+f" [{self._loaded_weight} Kg]"
 
 
-def _decide_delivery_van(package: pd.Series) -> _DeliveryVan:
+def _get_real_profit(package: pd.Series) -> int:
     """
-    Use an algorithm to decide which van this package should be contained in.
+    Get the real profit with deadline taken into account for the given package.
 
     ### Args:
     - `package`: A row from the `lagerstatus.csv` file containing package details.
     """
-    assert __name__ == "__main__", "Don't import this function."
-    raise NotImplementedError()
+    deadline = package["Deadline"]
+    return package["Förtjänst"] - (deadline**2 if deadline < 0 else 0)
 
 
-def main():
+def main() -> None:
     # Seed new data if there isn't any
     if not os.path.isfile("lagerstatus.csv"):
         import seeder
