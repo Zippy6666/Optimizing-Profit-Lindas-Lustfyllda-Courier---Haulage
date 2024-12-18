@@ -48,12 +48,13 @@ def _get_real_profit(package: dict) -> int:
     return package["Förtjänst"] - (deadline**2 if deadline < 0 else 0)
 
 
-def _feed_algorithm(chromosome: list) -> list:
+def _get_fitness(chromosome: list) -> int:
     """
+    Get the fitness of this chromosome.
     ### Args:
     - `chromosome`- A list representing each package as an integer that acts as the index for the van it should be put into, where -1 means don't package it into a van
     ### Returns:
-    - `new_chromosome` An integer describing the fitness.
+    - `fitness` An integer describing the fitness.
     """
 
     number_of_overloaded_vans = 0
@@ -78,7 +79,7 @@ def _feed_algorithm(chromosome: list) -> list:
     overload_penelty = 1_000_000*number_of_overloaded_vans
     fitness = total_profit - overload_penelty
 
-    return ...
+    return fitness
 
 
 def main() -> None:
@@ -95,7 +96,8 @@ def main() -> None:
     _df = pd.read_csv("lagerstatus.csv", dtype={"Paket_id": str, "Vikt": float, "Förtjänst": int, "Deadline": int})
     _delivery_vans = [_DeliveryVan(f"bil_{i+1}") for i in range(10)] # 10 vans
 
-    # chromosome = [random.randint(-1, 9) for _ in range(len(_df))]
+    chromosome = [random.randint(-1, 9) for _ in range(len(_df))]
+    print("Fitness:", _get_fitness(chromosome))
 
 if __name__ == "__main__":
     main()
