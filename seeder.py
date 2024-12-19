@@ -31,6 +31,8 @@ def seed_packages(n_iter: int = 100, target_path: Path = Path('lagerstatus.csv')
         writer = csv.DictWriter(file, fieldnames=fieldnames, lineterminator='\n')
         writer.writeheader()
         writer.writerows(entries)
+    
+    print("Seeding done!")
 
 
 if __name__ == '__main__':
