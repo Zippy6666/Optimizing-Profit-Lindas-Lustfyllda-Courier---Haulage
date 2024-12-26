@@ -177,6 +177,7 @@ def main() -> None:
     print("Profit, unoptimized:", profit_unoptimized)
 
     optimized_mult = get_optimized_profit_mult()
+    print("Mean profit importance mult:", optimized_mult)
     if optimized_mult:
         profit_optimized = fill_vans(delivery_vans, sort_dataframe(df, optimized_mult))
         print("Profit, optimized:", profit_optimized)
