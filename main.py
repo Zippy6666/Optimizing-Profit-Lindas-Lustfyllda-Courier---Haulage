@@ -112,6 +112,7 @@ def learn_packaging(
         data: pd.DataFrame,
         n_profit_mults: int,
         max_profit_mult: np.float64,
+        N_PACKAGES: int,
     ) -> np.float64:
     """
     TBD
@@ -129,15 +130,15 @@ def learn_packaging(
 
     assert "best_profit_mult" in locals(), "Did not find best multiplier. This should not happen."
 
-    append_prof_mult_to_file(best_profit_mult)
+    append_prof_mult_to_file(best_profit_mult, N_PACKAGES)
 
 
-def append_prof_mult_to_file(prof_mult: np.float64) -> None:
+def append_prof_mult_to_file(prof_mult: np.float64, n_packages: int) -> None:
     """
     TBD
     """
 
-    target_path = Path("profit_importance_mults.csv")
+    target_path = Path(f"profit_importance_mults_{n_packages}_packages.csv")
 
     fieldnames = ("profit_importance_mult",)
     
@@ -152,21 +153,29 @@ def append_prof_mult_to_file(prof_mult: np.float64) -> None:
         writer.writerow({"profit_importance_mult": prof_mult})
 
 
-def get_optimized_profit_mult() -> np.float64 | None:
+def get_optimized_profit_mult(n_packages: int) -> np.float64 | None:
     """
     TBD
     """
 
-    target_path = Path("profit_importance_mults.csv")
+    target_path = Path(f"profit_importance_mults_{n_packages}_packages.csv")
     if target_path.exists():
         profit_mults_df = pd.read_csv(target_path)
         return np.float64( profit_mults_df["profit_importance_mult"].mean() )
 
 
 def main() -> None:
+    """
+    The goal is to find the most optimized "profit importance multiplier".
+    It does so by finding the best possible solution for each run of package and applying the mean
+    of their "profit importance multiplier" to the next run.
+    
+    This multiplier seems to vary between packages. For instance, 10 000 packages seems to converge to a mean of about 3.36.
+    """
+
     SEARCH_STEPS = 50
     MAX_PROFIT_MULT = np.float64(4.0)
-    N_PACKAGES = 10_000
+    N_PACKAGES = 10_000 
 
     seeder.seed_packages(N_PACKAGES)
     df = pd.read_csv("lagerstatus.csv", dtype={"Paket_id": str, "Vikt": float, "Förtjänst": int, "Deadline": int})
@@ -176,14 +185,14 @@ def main() -> None:
     
     print("Profit, unoptimized:", profit_unoptimized)
 
-    optimized_mult = get_optimized_profit_mult()
+    optimized_mult = get_optimized_profit_mult(N_PACKAGES)
     print("Mean profit importance mult:", optimized_mult)
     if optimized_mult:
         profit_optimized = fill_vans(delivery_vans, sort_dataframe(df, optimized_mult))
         print("Profit, optimized:", profit_optimized)
         print("Profit gain:", profit_optimized-profit_unoptimized)
 
-    learn_packaging(delivery_vans, df, SEARCH_STEPS, MAX_PROFIT_MULT)
+    learn_packaging(delivery_vans, df, SEARCH_STEPS, MAX_PROFIT_MULT, N_PACKAGES)
 
 
 if __name__ == "__main__":
