@@ -76,6 +76,8 @@ def fill_vans(vans: list[DeliveryVan], data: pd.DataFrame) -> int:
     TBD
     """
 
+    clear_vans(vans)
+
     van_idx = 0
     for _, row in data.iterrows():
         van = vans[van_idx]
@@ -105,7 +107,7 @@ def clear_vans(vans: list[DeliveryVan]) -> None:
         van.empty()
 
 
-def search_for_best_prof_to_weight_ratio(
+def learn_packaging(
         vans: list[DeliveryVan],
         data: pd.DataFrame,
         n_profit_mults: int,
@@ -119,7 +121,6 @@ def search_for_best_prof_to_weight_ratio(
     profit_mults = np.linspace(0.0, max_profit_mult, num=n_profit_mults)
 
     for profit_mult in tqdm( profit_mults, total=len(profit_mults), desc="Finding ideal multiplier..." ):
-        clear_vans(vans)
         score = fill_vans(vans, sort_dataframe( data, profit_mult ))
 
         if score > best_score:
@@ -128,7 +129,7 @@ def search_for_best_prof_to_weight_ratio(
 
     assert "best_profit_mult" in locals(), "Did not find best multiplier. This should not happen."
 
-    return best_profit_mult
+    append_prof_mult_to_file(best_profit_mult)
 
 
 def append_prof_mult_to_file(prof_mult: np.float64) -> None:
@@ -151,26 +152,37 @@ def append_prof_mult_to_file(prof_mult: np.float64) -> None:
         writer.writerow({"profit_importance_mult": prof_mult})
 
 
+def get_optimized_profit_mult() -> np.float64 | None:
+    """
+    TBD
+    """
+
+    target_path = Path("profit_importance_mults.csv")
+    if target_path.exists():
+        profit_mults_df = pd.read_csv(target_path)
+        return np.float64( profit_mults_df["profit_importance_mult"].mean() )
+
+
 def main() -> None:
-    SEARCH_STEPS = 40
-    MAX_PROFIT_MULT = np.float64(3.0)
-    N_PACKAGES = 5000
+    SEARCH_STEPS = 50
+    MAX_PROFIT_MULT = np.float64(4.0)
+    N_PACKAGES = 10_000
 
     seeder.seed_packages(N_PACKAGES)
     df = pd.read_csv("lagerstatus.csv", dtype={"Paket_id": str, "Vikt": float, "Förtjänst": int, "Deadline": int})
     delivery_vans = [DeliveryVan(f"bil_{i+1}") for i in range(10)] # 10 vans
 
-    profit_importance_mult = search_for_best_prof_to_weight_ratio( delivery_vans, df, SEARCH_STEPS, MAX_PROFIT_MULT )
+    profit_unoptimized = fill_vans(delivery_vans, sort_dataframe(df, np.float64(1.0)))
+    
+    print("Profit, unoptimized:", profit_unoptimized)
 
-    clear_vans(delivery_vans)
-    profit_sum = fill_vans( delivery_vans, sort_dataframe(df, profit_importance_mult) )
+    optimized_mult = get_optimized_profit_mult()
+    if optimized_mult:
+        profit_optimized = fill_vans(delivery_vans, sort_dataframe(df, optimized_mult))
+        print("Profit, optimized:", profit_optimized)
+        print("Profit gain:", profit_optimized-profit_unoptimized)
 
-    print("Profit:", profit_sum)
-    print("Best multiplier:", profit_importance_mult)
-
-    append_prof_mult_to_file(profit_importance_mult)
-
-
+    learn_packaging(delivery_vans, df, SEARCH_STEPS, MAX_PROFIT_MULT)
 
 
 if __name__ == "__main__":

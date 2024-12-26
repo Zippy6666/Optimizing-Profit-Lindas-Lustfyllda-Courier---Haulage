@@ -163,5 +163,3 @@ cython_debug/
 
 lagerstatus.csv
 dummy.py
-
-profit_importance_mults
