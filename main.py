@@ -173,7 +173,7 @@ def main() -> None:
     This multiplier seems to vary between packages. For instance, 10 000 packages seems to converge to a mean of about 3.36.
     """
 
-    SEARCH_STEPS = 50
+    SEARCH_STEPS = 8
     MAX_PROFIT_MULT = np.float64(4.0)
     N_PACKAGES = 10_000 
 
