@@ -297,7 +297,7 @@ def package_vans() -> dict:
     """
 
     # Number of packages
-    arg_n: int | Literal[False] = len(sys.argv)>=1 and sys.argv[1].isdigit() and int(sys.argv[1])
+    arg_n: int | Literal[False] = len(sys.argv)>1 and sys.argv[1].isdigit() and int(sys.argv[1])
     N_PACKAGES = arg_n or 10_000
 
     # Constants for the algorithm
