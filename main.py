@@ -269,14 +269,24 @@ def get_should_stop(n_packages: int, stop_max_mean_change: int, stop_after: int)
 
 def package_vans() -> dict:
     """
-    Packages 10 vans with a limit of 800 Kg with new packages and tries to learn how to do so optimally.
+    Packages 10 vans with a limit of 800 Kg with x new packages and tries to learn how to do so optimally.
 
-    The goal is to find the most optimized "profit importance multiplier".
-    It does so by finding the best possible solution for each run of package and calculating the mean of all the multipliers
-    and using that mean to predict the next optimal multiplier.
+    This is what it does step by step:
+    1. Receive new, never seen before packages.
+    2. Sort the packages in order of profit, weight, and how long the deadline is overdue.
+    Assume that we determine priority by profit / weight.
+    3. Fill all the vans with packages in order of priority as determined in step 2.
+    4. Optimize the formula if there were any previous packagings, use the mean formula of all the previous packagings.
+    5. If the formula was optimized, let us know how much profit we gained compared to the raw, unoptimized formula.
+    6. Do a grid search to decide what the best formula for these packages would have been.
+    7. Calculate and remember the mean of the best formula for these packages and any potential previous packagings that took place.
+    8. If a large amount of previously calculated means are near this mean, assume we have found the best formula, so stop learning.
+
+    The only thing that ever changes in the formula is a simple multiplier that
+    increases or decreases how important the profit is compared to how light the package is.
 
     ### Returns:
-    `results` A dictionary as follows:
+    `results` Information in the form of a dictionary as follows:
         {
             "done_learning": bool,
             "new_best_profit_importance_multiplier": np.float64,
@@ -286,8 +296,8 @@ def package_vans() -> dict:
 
     # Constants
     SEARCH_STEPS = 32
-    MAX_PROFIT_MULT = np.float64(4.0)
-    N_PACKAGES = 500_000
+    MAX_PROFIT_MULT = np.float64(8.0)
+    N_PACKAGES = 10_000
     STOP_MAX_MEAN_CHANGE = 0.01
     STOP_AFTER = 10 # The mean did not change by more than 'STOP_MAX_MEAN_CHANGE' for this amount of times, so stop learning.
 
@@ -323,7 +333,9 @@ def package_vans() -> dict:
 
 if __name__ == "__main__":
     _done_learning = False
+
     while not _done_learning:
-        result = package_vans()
-        _done_learning = result["done_learning"]
-        print(result)
+        _result = package_vans()
+        _done_learning = _result["done_learning"]
+
+        print(_result)
