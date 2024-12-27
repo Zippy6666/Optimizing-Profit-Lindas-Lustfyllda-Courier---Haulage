@@ -4,3 +4,4 @@ From the Lindas Lustfyllda family of brands!
 ## TODO
 - [ ] Stopkriterium
 - [ ] Datavisualisering
+- [ ] Kommentarer
