@@ -1,6 +1,8 @@
+from typing import Literal
 import pandas as pd
 import numpy as np
 import seeder, csv
+import sys
 from tqdm import tqdm
 from pathlib import Path
 
@@ -294,10 +296,13 @@ def package_vans() -> dict:
         }
     """
 
-    # Constants
+    # Number of packages
+    arg_n: int | Literal[False] = len(sys.argv)>=1 and sys.argv[1].isdigit() and int(sys.argv[1])
+    N_PACKAGES = arg_n or 10_000
+
+    # Constants for the algorithm
     SEARCH_STEPS = 32
-    MAX_PROFIT_MULT = np.float64(8.0)
-    N_PACKAGES = 10_000
+    MAX_PROFIT_MULT = np.float64(4.0)
     STOP_MAX_MEAN_CHANGE = 0.01
     STOP_AFTER = 10 # The mean did not change by more than 'STOP_MAX_MEAN_CHANGE' for this amount of times, so stop learning.
 
