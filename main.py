@@ -262,8 +262,12 @@ def get_should_stop(n_packages: int, stop_max_mean_change: int, stop_after: int)
     # Get the most recent stop_after_n_changes means
     recent_means = means[-stop_after:]
 
+    most_recent_mean = recent_means[-1]
+
     # Compute the differences between means
-    differences = [abs(recent_means[i] - recent_means[i - 1]) for i in range(1, len(recent_means))]
+    differences = [abs(recent_mean - most_recent_mean) for recent_mean in recent_means]
+
+    # print(most_recent_mean, stop_max_mean_change, differences)
 
     # Check if all differences are at most stop_max_mean_change
     return all(diff <= stop_max_mean_change for diff in differences)
@@ -301,9 +305,9 @@ def package_vans() -> dict:
     N_PACKAGES = arg_n or 10_000
 
     # Constants for the algorithm
-    SEARCH_STEPS = 32
-    MAX_PROFIT_MULT = np.float64(4.0)
-    STOP_MAX_MEAN_CHANGE = 0.01
+    SEARCH_STEPS = 30
+    MAX_PROFIT_MULT = np.float64(8.0)
+    STOP_MAX_MEAN_CHANGE = 0.02
     STOP_AFTER = 10 # The mean did not change by more than 'STOP_MAX_MEAN_CHANGE' for this amount of times, so stop learning.
 
     # Seed new packages
