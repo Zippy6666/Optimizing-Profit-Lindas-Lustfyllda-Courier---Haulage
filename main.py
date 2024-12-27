@@ -72,10 +72,6 @@ def sort_dataframe(dataframe: pd.DataFrame, profit_importance_mult: np.float64) 
 
 
 def fill_vans(vans: list[DeliveryVan], data: pd.DataFrame) -> int:
-    """
-    TBD
-    """
-
     clear_vans(vans)
 
     van_idx = 0
@@ -99,10 +95,6 @@ def fill_vans(vans: list[DeliveryVan], data: pd.DataFrame) -> int:
 
 
 def clear_vans(vans: list[DeliveryVan]) -> None:
-    """
-    TBD
-    """
-
     for van in vans:
         van.empty()
 
@@ -114,14 +106,12 @@ def get_best_score_for_these_packages(
         max_profit_mult: np.float64,
         n_packages: int,
     ) -> np.float64:
-    """
-    TBD
-    """
-
     best_score = 0
     profit_mults = np.linspace(0.0, max_profit_mult, num=n_profit_mults)
 
-    for profit_mult in tqdm( profit_mults, total=len(profit_mults), desc="Finding ideal multiplier..." ):
+    desc = f"Finding best multiplier for these {n_packages} packages"
+
+    for profit_mult in tqdm( profit_mults, total=len(profit_mults), desc=desc ):
         score = fill_vans(vans, sort_dataframe( data, profit_mult ))
 
         if score > best_score:
@@ -134,10 +124,6 @@ def get_best_score_for_these_packages(
 
 
 def remember_in_file(prof_mult: np.float64, n_packages: int) -> None:
-    """
-    TBD
-    """
-
     target_path = Path(f"profit_importance_mults_{n_packages}_packages.csv")
 
     fieldnames = ("profit_importance_mult", "profit_importance_mult_mean")
@@ -169,18 +155,15 @@ def remember_in_file(prof_mult: np.float64, n_packages: int) -> None:
         })
 
 
-def get_optimized_profit_mult(n_packages: int) -> np.float64 | None:
-    """
-    TBD
-    """
-
+def get_profit_mult_mean(n_packages: int) -> np.float64 | None:
     target_path = Path(f"profit_importance_mults_{n_packages}_packages.csv")
 
-    if target_path.exists():
-        profit_mults_df = pd.read_csv(target_path)
-        mean = np.float64( profit_mults_df["profit_importance_mult"].mean() )
+    if not target_path.exists():
+        return
 
-        return mean
+    df = pd.read_csv(target_path)
+
+    return df.iloc[-1, 1]
 
 
 def main() -> None:
@@ -192,26 +175,27 @@ def main() -> None:
     This multiplier seems to vary between the total number of packages. For instance, 10 000 packages seems to converge to a mean of about 3.36.
     """
 
+    # Constants
     SEARCH_STEPS = 32
     MAX_PROFIT_MULT = np.float64(4.0)
     N_PACKAGES = 10_000
     STOP_MAX_MEAN_CHANGE = 0.1
     STOP_AFTER_N_CHANGES = 10
 
+    # Seed new packages
     seeder.seed_packages(N_PACKAGES)
     df = pd.read_csv("lagerstatus.csv", dtype={"Paket_id": str, "Vikt": float, "Förtjänst": int, "Deadline": int})
-    delivery_vans = [DeliveryVan(f"bil_{i+1}") for i in range(10)] # 10 vans
+    
+    # Make 10 delivery vans
+    delivery_vans = [DeliveryVan(f"bil_{i+1}") for i in range(10)]
 
     profit_unoptimized = fill_vans(delivery_vans, sort_dataframe(df, np.float64(1.0)))
-    
-    print("Profit, unoptimized:", profit_unoptimized)
 
-    mean = get_optimized_profit_mult(N_PACKAGES)
+    mean = get_profit_mult_mean(N_PACKAGES)
     print("Mean profit importance mult:", mean)
 
     if mean:
         profit_optimized = fill_vans(delivery_vans, sort_dataframe(df, mean))
-        print("Profit, optimized:", profit_optimized)
         print("Profit gain:", profit_optimized-profit_unoptimized)
 
     best_score = get_best_score_for_these_packages(delivery_vans, df, SEARCH_STEPS, MAX_PROFIT_MULT, N_PACKAGES)
