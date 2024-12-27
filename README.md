@@ -4,5 +4,5 @@ From the Lindas Lustfyllda family of brands!
 ## TODO
 - [x] Stopkriterium
 - [ ] Datavisualisering
-- [ ] Kommentarer
+- [x] Kommentarer
 - [ ] Informativ README

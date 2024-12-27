@@ -233,11 +233,17 @@ def get_profit_mult_mean(n_packages: int) -> np.float64 | None:
 
 def get_should_stop(n_packages: int, stop_max_mean_change: int, stop_after: int) -> bool:
     """
-    Determine if the algorithm has learned the optimal "profit importance multiplier" for `n_packages` packages.
+    Determine if the algorithm has learned the optimal "profit importance multiplier" for the packaging of `n_packages` packages.
 
     ### Args:
-    ``
+    `n_packages`: Check if we have learned packaging for this amount of packages.
+    `stop_max_mean_change`: If the mean did not change by more than this `stop_after` amount of times, determine that we are done learning.
+    `stop_after`: If the mean did not change by more than `stop_max_mean_change` this amount of times, determine that we are done learning.
+
+    ### Returns:
+    `should_stop`: Whether or not we are done learning.
     """
+
     target_path = Path(f"profit_importance_mults_{n_packages}_packages.csv")
 
     if not target_path.exists():
@@ -254,7 +260,7 @@ def get_should_stop(n_packages: int, stop_max_mean_change: int, stop_after: int)
     # Get the most recent stop_after_n_changes means
     recent_means = means[-stop_after:]
 
-    # Compute the differences between consecutive means
+    # Compute the differences between means
     differences = [abs(recent_means[i] - recent_means[i - 1]) for i in range(1, len(recent_means))]
 
     # Check if all differences are at most stop_max_mean_change
@@ -263,14 +269,19 @@ def get_should_stop(n_packages: int, stop_max_mean_change: int, stop_after: int)
 
 def package_vans() -> dict:
     """
-    Packages the vans with new packages and tries to learn how to do so optimally.
+    Packages 10 vans with a limit of 800 Kg with new packages and tries to learn how to do so optimally.
 
     The goal is to find the most optimized "profit importance multiplier".
-    It does so by finding the best possible solution for each run of package and applying the mean
-    of their "profit importance multiplier" to the next run.
+    It does so by finding the best possible solution for each run of package and calculating the mean of all the multipliers
+    and using that mean to predict the next optimal multiplier.
 
-    This multiplier seems to vary between the total number of packages.
-    For instance, 10 000 packages seems to converge to a mean of about 3.29.
+    ### Returns:
+    `results` A dictionary as follows:
+        {
+            "done_learning": bool,
+            "new_best_profit_importance_multiplier": np.float64,
+            "profit_gain": int
+        }
     """
 
     # Constants
@@ -307,12 +318,12 @@ def package_vans() -> dict:
         remember_in_file(best_score, N_PACKAGES)
 
     # Return results
-    return {"done_learning": done_learning, "profit_importance_multiplier": mean, "profit_gain": gain}
+    return {"done_learning": done_learning, "new_best_profit_importance_multiplier": mean, "profit_gain": gain}
 
 
 if __name__ == "__main__":
-    done_learning = False
-    while not done_learning:
+    _done_learning = False
+    while not _done_learning:
         result = package_vans()
-        done_learning = result["done_learning"]
+        _done_learning = result["done_learning"]
         print(result)
