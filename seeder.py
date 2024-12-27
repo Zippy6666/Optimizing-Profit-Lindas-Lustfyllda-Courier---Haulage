@@ -10,7 +10,7 @@ def seed_packages(n_iter: int = 100, target_path: Path = Path('lagerstatus.csv')
 
     entries = []
     id_num = random.randint(1_000_000_000, 9_999_999_999 - n_iter)
-    for _ in tqdm( range(n_iter), total=n_iter, desc="Seeding..." ):
+    for _ in tqdm( range(n_iter), total=n_iter, desc="Seeding...", leave=False ):
         id_num += 1
         weight = round((random.randint(10, 150) + random.randint(10, 80)) / 20, 1)
         profit = int((random.randint(1, 10) + random.randint(1, 10)) / 2)
@@ -24,16 +24,11 @@ def seed_packages(n_iter: int = 100, target_path: Path = Path('lagerstatus.csv')
             }
         )
 
-    print("Writing CSV...")
-
     fieldnames = 'Paket_id','Vikt','Förtjänst','Deadline'
     with target_path.open('w', encoding='utf-8') as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames, lineterminator='\n')
         writer.writeheader()
         writer.writerows(entries)
-    
-    print("Seeding done!")
-
 
 if __name__ == '__main__':
     seed_packages()
