@@ -28,9 +28,7 @@ class DeliveryVan:
         self._profit += get_real_profit(package)
 
     def empty(self) -> None:
-        """
-        Empty this van.
-        """
+        """Empty this van."""
         self._loaded_weight = np.float64()
         self._profit = 0
 
@@ -44,9 +42,7 @@ class DeliveryVan:
         return self._profit
 
     def __repr__(self) -> str:
-        """
-        Nice representation of the van. For debug purposes.
-        """
+        """Nice representation of the van. For debug purposes."""
         return self._name+f" [{self._loaded_weight} Kg]"
 
 
@@ -104,6 +100,24 @@ def get_total_penalty_of_undelivered_packages(dataframe: pd.DataFrame) -> np.int
     total_penalty = (undelivered_with_penalty_df["Deadline"] ** 2).sum()
     
     return total_penalty
+
+
+def get_total_profit_of_undelivered_packages(dataframe: pd.DataFrame) -> np.int64:
+    """
+    Calculate the total profit for undelivered packages.
+
+    ### Args:
+    `dataframe`: The DataFrame containing package data.
+
+    ### Returns:
+    `total_profit`: The total profit of all undelivered packages.
+    """
+
+    undelivered_profit_df = dataframe[ (dataframe["Delivered"] == False) ]
+
+    total_profit = undelivered_profit_df["Förtjänst"].sum()
+    
+    return total_profit
 
 
 def fill_vans(vans: list[DeliveryVan], data: pd.DataFrame, fake: bool = False) -> int:
@@ -277,7 +291,7 @@ def get_should_stop(n_packages: int, stop_max_mean_change: int, stop_after: int)
         return False
 
     df = pd.read_csv(target_path)
-    
+
     means = list( df["profit_importance_mult_mean"] )
 
     # Ensure we have enough means to compare
@@ -296,9 +310,9 @@ def get_should_stop(n_packages: int, stop_max_mean_change: int, stop_after: int)
     return all(diff <= stop_max_mean_change for diff in differences)
 
 
-def package_vans() -> dict:
+def package_vans(n_packages: int) -> dict:
     """
-    Packages 10 vans with a limit of 800 Kg with x new packages and tries to learn how to do so optimally.
+    Packages 10 vans with a limit of 800 Kg with `n_packages` new packages and tries to learn how to do so optimally.
 
     This is what it does step by step:
     1. Receive new, never seen before packages.
@@ -317,29 +331,27 @@ def package_vans() -> dict:
     ### Returns:
     `results` Information in the form of a dictionary as follows:
         {
+            "df": pd.Dataframe,
             "done_learning": bool,
             "new_best_profit_importance_multiplier": np.float64,
             "profit": int,
-            "profit_gain": int
+            "profit_gain": int,
             "penalty_of_undelivered_packages": np.int64
         }
-    Where for some context, `profit` is the total profit from all the packages in the vans,
-    and `profit_gain` is the amount of gained profit after the formula was optimized.
-    and `penalty_of_undelivered_packages` is the total penalty of all packages remaining in the warehouse.
+    Where FYI, `profit` is the total profit from all the packages in the vans,
+    and `profit_gain` is the amount of gained profit after the formula was optimized,
+    and `penalty_of_undelivered_packages` is the total penalty of all packages remaining in the warehouse,
+    and `profit_of_undelivered_packages` is the total profit of the packages remaining in the warhouse, not including the penalty.
     """
 
-    # Number of packages
-    arg_n: int | Literal[False] = len(sys.argv)>1 and sys.argv[1].isdigit() and int(sys.argv[1])
-    N_PACKAGES = arg_n or 10_000
-
-    # Constants for the algorithm
+    # Constants
     SEARCH_STEPS = 30
     MAX_PROFIT_MULT = np.float64(8.0)
     STOP_MAX_MEAN_CHANGE = 0.02
-    STOP_AFTER = 10 # The mean did not change by more than 'STOP_MAX_MEAN_CHANGE' for this amount of times, so stop learning.
+    STOP_AFTER = 10
 
     # Seed new packages
-    seeder.seed_packages(N_PACKAGES)
+    seeder.seed_packages(n_packages)
     df = pd.read_csv("lagerstatus.csv", dtype={"Paket_id": str, "Vikt": float, "Förtjänst": int, "Deadline": int})
 
     # Add a column for checking if this package has been packaged in a van
@@ -348,7 +360,7 @@ def package_vans() -> dict:
     # Make 10 delivery vans
     delivery_vans = [DeliveryVan(f"bil_{i+1}") for i in range(10)]
 
-    mean: np.float64 | None = get_profit_mult_mean(N_PACKAGES) # Get the mean of all the past best 'profit importance multipliers', if any
+    mean: np.float64 | None = get_profit_mult_mean(n_packages) # Get the mean of all the past best 'profit importance multipliers', if any
     gain = 0 # How much profit is gained after potential optimization
 
     # Sort dataframe
@@ -365,29 +377,34 @@ def package_vans() -> dict:
         gain = profit_optimized-profit_unoptimized # Calc profit gain
 
     # Determine if we should keep trying to optimize the algorithm
-    done_learning = get_should_stop(N_PACKAGES, STOP_MAX_MEAN_CHANGE, STOP_AFTER)
+    done_learning = get_should_stop(n_packages, STOP_MAX_MEAN_CHANGE, STOP_AFTER)
 
     # Keep learning if we should
     if not done_learning:
         # Determine what the best 'profit importance multiplier' would have been for this group of packages
         best_score = gridsearch_best_score_for_these_packages(delivery_vans, df, SEARCH_STEPS, MAX_PROFIT_MULT)
-        remember_in_file(best_score, N_PACKAGES)
+        remember_in_file(best_score, n_packages)
 
     # Return results
     return {
+        "df": df,
         "done_learning": done_learning,
         "new_best_profit_importance_multiplier": mean,
         "profit": profit_optimized or profit_unoptimized,
         "profit_gain": gain,
-        "penalty_of_undelivered_packages": get_total_penalty_of_undelivered_packages(df)
+        "penalty_of_undelivered_packages": get_total_penalty_of_undelivered_packages(df),
+        "profit_of_undelivered_packages": get_total_profit_of_undelivered_packages(df)
     }
 
 
 if __name__ == "__main__":
     _done_learning = False
 
+    # Number of packages
+    _N_PACKAGES: int = ( len(sys.argv)>1 and sys.argv[1].isdigit() and int(sys.argv[1]) ) or 10_000
+
     while not _done_learning:
-        _result = package_vans()
+        _result = package_vans(_N_PACKAGES)
         _done_learning = _result["done_learning"]
 
         print(_result)
