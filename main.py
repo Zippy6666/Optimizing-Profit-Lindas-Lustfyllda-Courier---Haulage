@@ -77,22 +77,43 @@ def sort_dataframe(dataframe: pd.DataFrame, profit_importance_mult: np.float64) 
 
     sort_worth = ( ((dataframe["Förtjänst"]*profit_importance_mult) / dataframe["Vikt"])
     - np.minimum(0, dataframe["Deadline"])**2 )
+
+    sorted_dataframe = dataframe.copy()
     
-    dataframe["Sort_Worth"] = sort_worth
+    sorted_dataframe["Sort_Worth"] = sort_worth
 
     # Sort by 'Sort_Worth' in descending order and drop the temporary 'Sort_Worth' column
-    sorted_dataframe = dataframe.sort_values(by="Sort_Worth", ascending=False).drop(columns=["Sort_Worth"])
-    
+    sorted_dataframe = sorted_dataframe.sort_values(by="Sort_Worth", ascending=False).drop(columns=["Sort_Worth"])
+
     return sorted_dataframe
 
 
-def fill_vans(vans: list[DeliveryVan], data: pd.DataFrame) -> int:
+def get_total_penalty_of_undelivered_packages(dataframe: pd.DataFrame) -> np.int64:
+    """
+    Calculate the total penalty for undelivered packages based on their deadlines.
+
+    ### Args:
+    `dataframe`: The DataFrame containing package data.
+
+    ### Returns:
+    `total_penalty`: The sum of penalties for all undelivered packages.
+    """
+
+    undelivered_with_penalty_df = dataframe[ (dataframe["Delivered"] == False) & (dataframe["Deadline"] < 0) ]
+
+    total_penalty = (undelivered_with_penalty_df["Deadline"] ** 2).sum()
+    
+    return total_penalty
+
+
+def fill_vans(vans: list[DeliveryVan], data: pd.DataFrame, fake: bool = False) -> int:
     """
     Fill the vans with packages one by one until they cannot carry any more weight.
 
     ### Args:
     `vans`: The delivery vans.
     `data`: The packages.
+    `fake`: If true, packages won't actually be delivered.
 
     ### Returns:
     `profit`: How much profit the packages in all the vans are collectively worth.
@@ -101,11 +122,14 @@ def fill_vans(vans: list[DeliveryVan], data: pd.DataFrame) -> int:
     clear_vans(vans)
 
     van_idx = 0
-    for _, row in data.iterrows():
+    for i, row in data.iterrows():
         van = vans[van_idx]
 
         if van.get_weight() + row["Vikt"] <= van.get_max_weight():
+
             van.load_package(row)
+            data.at[i, "Delivered"] = not fake
+
         else:
             van_idx+=1
 
@@ -115,6 +139,7 @@ def fill_vans(vans: list[DeliveryVan], data: pd.DataFrame) -> int:
 
             van = vans[van_idx]
             van.load_package(row)
+            data.at[i, "Delivered"] = not fake
 
     profit_sum = sum(van.get_profit() for van in vans)
     return profit_sum
@@ -156,7 +181,7 @@ def gridsearch_best_score_for_these_packages(
     desc = f"Finding best multiplier for these {len(data)} packages"
 
     for profit_mult in tqdm( profit_mults, total=len(profit_mults), desc=desc, leave=False ):
-        score = fill_vans(vans, sort_dataframe( data, profit_mult ))
+        score = fill_vans(vans, sort_dataframe( data, profit_mult ), fake=True)
 
         if score > best_score:
             best_score = score
@@ -267,8 +292,6 @@ def get_should_stop(n_packages: int, stop_max_mean_change: int, stop_after: int)
     # Compute the differences between means
     differences = [abs(recent_mean - most_recent_mean) for recent_mean in recent_means]
 
-    # print(most_recent_mean, stop_max_mean_change, differences)
-
     # Check if all differences are at most stop_max_mean_change
     return all(diff <= stop_max_mean_change for diff in differences)
 
@@ -296,8 +319,13 @@ def package_vans() -> dict:
         {
             "done_learning": bool,
             "new_best_profit_importance_multiplier": np.float64,
+            "profit": int,
             "profit_gain": int
+            "penalty_of_undelivered_packages": np.int64
         }
+    Where for some context, `profit` is the total profit from all the packages in the vans,
+    and `profit_gain` is the amount of gained profit after the formula was optimized.
+    and `penalty_of_undelivered_packages` is the total penalty of all packages remaining in the warehouse.
     """
 
     # Number of packages
@@ -314,17 +342,26 @@ def package_vans() -> dict:
     seeder.seed_packages(N_PACKAGES)
     df = pd.read_csv("lagerstatus.csv", dtype={"Paket_id": str, "Vikt": float, "Förtjänst": int, "Deadline": int})
 
+    # Add a column for checking if this package has been packaged in a van
+    df["Delivered"] = False
+
     # Make 10 delivery vans
     delivery_vans = [DeliveryVan(f"bil_{i+1}") for i in range(10)]
 
-    # Try filling them with brute force, without optimizing
-    profit_unoptimized = fill_vans(delivery_vans, sort_dataframe(df, np.float64(1.0)))
+    mean: np.float64 | None = get_profit_mult_mean(N_PACKAGES) # Get the mean of all the past best 'profit importance multipliers', if any
+    gain = 0 # How much profit is gained after potential optimization
 
-    mean: np.float64 | None = get_profit_mult_mean(N_PACKAGES) # Get the mean of all the past best 'profit importance multipliers'
-    gain = 0 # How much profit is gained after optimization
+    # Sort dataframe
+    df = sort_dataframe(df, np.float64(1.0))
+
+    profit_unoptimized = fill_vans(delivery_vans, df, fake=( mean is None and False or True ))
+    profit_optimized = None
 
     if mean:
-        profit_optimized = fill_vans(delivery_vans, sort_dataframe(df, mean))
+        # Sort dataframe, but try doing it in an optimized way
+        df = sort_dataframe(df, mean)
+
+        profit_optimized = fill_vans(delivery_vans, df)
         gain = profit_optimized-profit_unoptimized # Calc profit gain
 
     # Determine if we should keep trying to optimize the algorithm
@@ -337,7 +374,13 @@ def package_vans() -> dict:
         remember_in_file(best_score, N_PACKAGES)
 
     # Return results
-    return {"done_learning": done_learning, "new_best_profit_importance_multiplier": mean, "profit_gain": gain}
+    return {
+        "done_learning": done_learning,
+        "new_best_profit_importance_multiplier": mean,
+        "profit": profit_optimized or profit_unoptimized,
+        "profit_gain": gain,
+        "penalty_of_undelivered_packages": get_total_penalty_of_undelivered_packages(df)
+    }
 
 
 if __name__ == "__main__":
