@@ -95,7 +95,7 @@ def get_total_penalty_of_undelivered_packages(dataframe: pd.DataFrame) -> np.int
     `total_penalty`: The sum of penalties for all undelivered packages.
     """
 
-    undelivered_with_penalty_df = dataframe[ (dataframe["Delivered"] == False) & (dataframe["Deadline"] < 0) ]
+    undelivered_with_penalty_df = dataframe[ (dataframe["Delivered"] == -1) & (dataframe["Deadline"] < 0) ]
 
     total_penalty = (undelivered_with_penalty_df["Deadline"] ** 2).sum()
     
@@ -113,7 +113,7 @@ def get_total_profit_of_undelivered_packages(dataframe: pd.DataFrame) -> np.int6
     `total_profit`: The total profit of all undelivered packages.
     """
 
-    undelivered_profit_df = dataframe[ (dataframe["Delivered"] == False) ]
+    undelivered_profit_df = dataframe[ (dataframe["Delivered"] == -1) ]
 
     total_profit = undelivered_profit_df["Förtjänst"].sum()
     
@@ -142,7 +142,7 @@ def fill_vans(vans: list[DeliveryVan], data: pd.DataFrame, fake: bool = False) -
         if van.get_weight() + row["Vikt"] <= van.get_max_weight():
 
             van.load_package(row)
-            data.at[i, "Delivered"] = not fake
+            data.at[i, "Delivered"] = van_idx if not fake else -1
 
         else:
             van_idx+=1
@@ -153,7 +153,7 @@ def fill_vans(vans: list[DeliveryVan], data: pd.DataFrame, fake: bool = False) -
 
             van = vans[van_idx]
             van.load_package(row)
-            data.at[i, "Delivered"] = not fake
+            data.at[i, "Delivered"] = van_idx if not fake else -1
 
     profit_sum = sum(van.get_profit() for van in vans)
     return profit_sum
@@ -354,8 +354,8 @@ def package_vans(n_packages: int) -> dict:
     seeder.seed_packages(n_packages)
     df = pd.read_csv("lagerstatus.csv", dtype={"Paket_id": str, "Vikt": float, "Förtjänst": int, "Deadline": int})
 
-    # Add a column for checking if this package has been packaged in a van
-    df["Delivered"] = False
+    # Add a column for the index of the van a package is put into
+    df["Delivered"] = -1
 
     # Make 10 delivery vans
     delivery_vans = [DeliveryVan(f"bil_{i+1}") for i in range(10)]
