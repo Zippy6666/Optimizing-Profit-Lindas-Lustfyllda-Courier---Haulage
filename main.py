@@ -1,7 +1,7 @@
-from typing import Literal
+from typing import Literal, Optional
 import pandas as pd
 import numpy as np
-import seeder, csv
+import seeder_realistic, csv
 import sys
 from tqdm import tqdm
 from pathlib import Path
@@ -60,7 +60,7 @@ def get_real_profit(package: dict) -> int:
 def sort_dataframe(dataframe: pd.DataFrame, profit_importance_mult: np.float64) -> pd.DataFrame:
     """
     Determine a sorting priority for each package as such:\n
-    `( ( profit * profit_importance_mult ) / weight ) - deadline_overdue ^ 2`
+    `( ( profit - deadline_overdue ^ 2 ) * profit_importance_mult ) / weight`
 
     Sort all packages in the dataframe based on this formula.
     
@@ -71,8 +71,10 @@ def sort_dataframe(dataframe: pd.DataFrame, profit_importance_mult: np.float64) 
     `sorted_dataframe`: A new dataframe sorted to prioritize packages based on factors.
     """
 
-    sort_worth = ( ((dataframe["Förtjänst"]*profit_importance_mult) / dataframe["Vikt"])
-    - np.minimum(0, dataframe["Deadline"])**2 )
+    sort_worth = (
+        ( (dataframe["Förtjänst"] - np.where(dataframe["Deadline"] < 0, dataframe["Deadline"] ** 2, 0)) * profit_importance_mult )
+        / dataframe["Vikt"]
+    ) 
 
     sorted_dataframe = dataframe.copy()
     
@@ -310,7 +312,7 @@ def get_should_stop(n_packages: int, stop_max_mean_change: int, stop_after: int)
     return all(diff <= stop_max_mean_change for diff in differences)
 
 
-def package_vans(n_packages: int) -> dict:
+def package_vans(n_packages: int, packages: Optional[pd.DataFrame] = None) -> dict:
     """
     Packages 10 vans with a limit of 800 Kg with `n_packages` new packages and tries to learn how to do so optimally.
 
@@ -345,14 +347,17 @@ def package_vans(n_packages: int) -> dict:
     """
 
     # Constants
-    SEARCH_STEPS = 30
-    MAX_PROFIT_MULT = np.float64(8.0)
-    STOP_MAX_MEAN_CHANGE = 0.02
+    SEARCH_STEPS = 40
+    MAX_PROFIT_MULT = np.float64(6.0)
+    STOP_MAX_MEAN_CHANGE = 0.01
     STOP_AFTER = 10
 
-    # Seed new packages
-    seeder.seed_packages(n_packages)
-    df = pd.read_csv("lagerstatus.csv", dtype={"Paket_id": str, "Vikt": float, "Förtjänst": int, "Deadline": int})
+    if packages is None:
+        # Seed new packages
+        seeder_realistic.seed_packages(n_packages, Path("lagerstatus_seeded.csv"))
+        df = pd.read_csv("lagerstatus_seeded.csv", dtype={"Paket_id": str, "Vikt": float, "Förtjänst": int, "Deadline": int})
+    else:
+        df = packages
 
     # Add a column for the index of the van a package is put into
     df["Delivered"] = -1
