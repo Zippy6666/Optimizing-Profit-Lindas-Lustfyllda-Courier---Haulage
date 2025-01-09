@@ -1,7 +1,9 @@
+""" Daniels orörda seeder """
+
+
 import csv
 import random
 from pathlib import Path
-from tqdm import tqdm
 
 
 def seed_packages(n_iter: int = 100, target_path: Path = Path('lagerstatus.csv')) -> None:
@@ -10,7 +12,7 @@ def seed_packages(n_iter: int = 100, target_path: Path = Path('lagerstatus.csv')
 
     entries = []
     id_num = random.randint(1_000_000_000, 9_999_999_999 - n_iter)
-    for _ in tqdm( range(n_iter), total=n_iter, desc="Seeding...", leave=False ):
+    for _ in range(n_iter):
         id_num += 1
         weight = round((random.randint(10, 150) + random.randint(10, 80)) / 20, 1)
         profit = int((random.randint(1, 10) + random.randint(1, 10)) / 2)
