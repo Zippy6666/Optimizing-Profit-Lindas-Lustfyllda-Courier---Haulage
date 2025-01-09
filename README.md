@@ -18,3 +18,5 @@ Assume that we determine priority by profit / weight.
 - [ ] Datavisualisering
 - [x] Kommentarer
 - [ ] Informativ README
+
+Test.
