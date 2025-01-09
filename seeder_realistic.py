@@ -13,23 +13,20 @@ def seed_packages(n_iter: int = 100, target_path: Path = Path('lagerstatus.csv')
     for _ in tqdm( range(n_iter), total=n_iter, desc="Seeding...", leave=False ):
         id_num += 1
 
-        if random.random() > 0.55:
-            # Heavy packages are a bit more rare
-            weight = round( random.randint(5, 11) + random.random(),  1)
+        if random.random() > 0.45:
+            weight = round( random.randint(4, 11) + random.random(),  1)
         else:
-            weight = round( random.randint(1, 4) + random.random(), 1)
+            weight = round( random.randint(0, 3) + random.random(), 1)
 
-
-        if random.random() > 0.84:
+        if random.random() > 0.88:
             profit = random.randint(3, 6)
         else:
             profit = random.randint(1, 9)
 
-        if random.random() > 0.13:
+        if random.random() > 0.09:
             deadline = random.randint(0, 9)
         else:
             deadline = random.randint(-5, -1)
-
 
         entries.append(
             {

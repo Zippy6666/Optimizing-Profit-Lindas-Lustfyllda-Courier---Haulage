@@ -16,7 +16,7 @@ class DeliveryVan:
         self._profit = 0
         self._max_weight = max_weight
 
-    def load_package(self, package: pd.Series) -> None:
+    def load_package(self, weight: np.float64, profit: int) -> None:
         """
         Load a package into this van.
 
@@ -24,8 +24,8 @@ class DeliveryVan:
         `package`: A row from a `lagerstatus.csv` file containing package details.
         """
 
-        self._loaded_weight = round(self._loaded_weight + package["Vikt"], 1)
-        self._profit += get_real_profit(package)
+        self._loaded_weight += weight
+        self._profit += profit
 
     def empty(self) -> None:
         """Empty this van."""
@@ -46,15 +46,14 @@ class DeliveryVan:
         return self._name+f" [{self._loaded_weight} Kg]"
 
 
-def get_real_profit(package: dict) -> int:
+def get_real_profit(profit: int, deadline: int) -> int:
     """
     Get the real profit with deadline taken into account for the given package.
 
     ### Args:
     `package`: A row from the `lagerstatus.csv` file containing package details.
     """
-    deadline = package["Deadline"]
-    return package["Förtjänst"] - (deadline**2 if deadline < 0 else 0)
+    return profit - (deadline**2 if deadline < 0 else 0)
 
 
 def sort_dataframe(dataframe: pd.DataFrame, profit_importance_mult: np.float64) -> pd.DataFrame:
@@ -135,30 +134,46 @@ def fill_vans(vans: list[DeliveryVan], data: pd.DataFrame, fake: bool = False) -
     `profit`: How much profit the packages in all the vans are collectively worth.
     """
 
+    # Clear existing packages in vans
     clear_vans(vans)
 
+    # Extract relevant data as numpy arrays for faster processing
+    data_np = data.to_numpy()
+    delivered = np.full(len(data), -1, dtype=int)  # Default: not delivered
+
     van_idx = 0
-    for i, row in data.iterrows():
-        van = vans[van_idx]
+    n_vans = len(vans)
 
-        if van.get_weight() + row["Vikt"] <= van.get_max_weight():
+    # Column indices for easier readability
+    weight_idx = data.columns.get_loc("Vikt")  
+    profit_idx = data.columns.get_loc("Förtjänst")  
+    deadline_idx = data.columns.get_loc("Deadline")  
 
-            van.load_package(row)
-            data.at[i, "Delivered"] = van_idx if not fake else -1
-
-        else:
-            van_idx+=1
-
-            # Last van, break out
-            if van_idx >= len(vans):
-                break
-
+    for i, package_np in enumerate( data_np ):
+        while van_idx < n_vans:
             van = vans[van_idx]
-            van.load_package(row)
-            data.at[i, "Delivered"] = van_idx if not fake else -1
 
-    profit_sum = sum(van.get_profit() for van in vans)
-    return profit_sum
+            pack_weight = package_np[weight_idx]
+
+            if van.get_weight() + pack_weight <= van.get_max_weight():
+                # Load package and mark as delivered
+                van.load_package(pack_weight, get_real_profit(package_np[profit_idx], package_np[deadline_idx]))
+                if not fake:
+                    delivered[i] = van_idx
+                break
+            else:
+                # Move to the next van
+                van_idx += 1
+
+        if van_idx >= n_vans:
+            break
+
+    # Update the "Delivered" column in one operation
+    if not fake:
+        data["Delivered"] = delivered
+
+    # Calculate total profit from all vans
+    return sum(van.get_profit() for van in vans)
 
 
 def clear_vans(vans: list[DeliveryVan]) -> None:
@@ -347,9 +362,9 @@ def package_vans(n_packages: int, packages: Optional[pd.DataFrame] = None) -> di
     """
 
     # Constants
-    SEARCH_STEPS = 40
-    MAX_PROFIT_MULT = np.float64(6.0)
-    STOP_MAX_MEAN_CHANGE = 0.01
+    SEARCH_STEPS = 64
+    MAX_PROFIT_MULT = np.float64(20.0)
+    STOP_MAX_MEAN_CHANGE = 0.02
     STOP_AFTER = 10
 
     if packages is None:
@@ -389,6 +404,8 @@ def package_vans(n_packages: int, packages: Optional[pd.DataFrame] = None) -> di
         # Determine what the best 'profit importance multiplier' would have been for this group of packages
         best_score = gridsearch_best_score_for_these_packages(delivery_vans, df, SEARCH_STEPS, MAX_PROFIT_MULT)
         remember_in_file(best_score, n_packages)
+
+    df["Vikt"] = round(df["Vikt"], 1)
 
     # Return results
     return {
