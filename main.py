@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Optional
 import pandas as pd
 import numpy as np
 import seeder_realistic, csv
@@ -21,7 +21,8 @@ class DeliveryVan:
         Load a package into this van.
 
         ### Args:
-        `package`: A row from a `lagerstatus.csv` file containing package details.
+        `weight`: The weight of the package.
+        `profit`: The profit of the package after penalty.
         """
 
         self._loaded_weight += weight
@@ -51,7 +52,8 @@ def get_real_profit(profit: int, deadline: int) -> int:
     Get the real profit with deadline taken into account for the given package.
 
     ### Args:
-    `package`: A row from the `lagerstatus.csv` file containing package details.
+    `profit`: The profit of the package.
+    `deadline`: The deadline of the package.
     """
     return profit - (deadline**2 if deadline < 0 else 0)
 
@@ -232,7 +234,7 @@ def remember_in_file(prof_mult: np.float64, n_packages: int) -> None:
     ### Args:
     `prof_mult`: The "profit importance multiplier" to remember.
     `n_packages`: The amount of packages to remember this multiplier for.
-    This is important since the ideal multiplier depends on the number of packages.
+    This is important since the ideal multiplier can depend on the number of packages.
     """
 
     target_path = Path(f"profit_importance_mults_{n_packages}_packages.csv")
@@ -272,7 +274,7 @@ def get_profit_mult_mean(n_packages: int) -> np.float64 | None:
 
     ### Args:
     `n_packages`: The amount of packages to get the optimal multiplier for.
-    This is important since the ideal multiplier depends on the number of packages.
+    This is important since the ideal multiplier can depend on the number of packages.
 
     ### Returns:
     `mean`- The mean it can be determined, otherwise None.
@@ -345,6 +347,10 @@ def package_vans(n_packages: int, packages: Optional[pd.DataFrame] = None) -> di
     The only thing that ever changes in the formula is a simple multiplier that
     increases or decreases how important the profit is compared to how light the package is.
 
+    ### Args:
+    `n_packages`: The number of new packages to seed or the number of packages in the supplied dataframe.
+    `packages`: An optional DataFrame to use instead of seeding new packages.
+
     ### Returns:
     `results` Information in the form of a dictionary as follows:
         {
@@ -354,11 +360,8 @@ def package_vans(n_packages: int, packages: Optional[pd.DataFrame] = None) -> di
             "profit": int,
             "profit_gain": int,
             "penalty_of_undelivered_packages": np.int64
+            "profit_of_undelivered_packages": np.int64
         }
-    Where FYI, `profit` is the total profit from all the packages in the vans,
-    and `profit_gain` is the amount of gained profit after the formula was optimized,
-    and `penalty_of_undelivered_packages` is the total penalty of all packages remaining in the warehouse,
-    and `profit_of_undelivered_packages` is the total profit of the packages remaining in the warhouse, not including the penalty.
     """
 
     # Constants
