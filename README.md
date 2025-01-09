@@ -2,7 +2,7 @@
 From the Lindas Lustfyllda family of brands!
 
 ## TODO
-- [ ] Gör klart visualiseringar
+- [x] Gör klart visualiseringar
 - [ ] Rapportera, ta upp grundtanken osv, jämför med genetisk algoritm
 
 ## Dokumentationspunkter
